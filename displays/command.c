@@ -1,7 +1,34 @@
 /*
+  This file is part of bstatus.
+
+  bstatus is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  bstatus is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with bstatus.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+/*
   Use an external program for the display driver
 
   A command line should follow the option in the configuration file
+
+  The status line is fed to the program on file descriptor 3, item by item,
+  with each format being of the format min_width:text where min_width is the
+  minimum width in characters that the item should take up, and text is the text
+  associated. Status lines are seperated by an empty line
+
+  Events are read from the program on file descriptor 4 in the following format:
+
+    click N M P - Mouse button M was pressed on the Nth item (from 0) at
+                  position P in the status line
 */
 
 
@@ -18,16 +45,31 @@
 
 
 
+/*
+  The pid of the program generating the status line
+*/
 static pid_t command_pid = 0;
+
+/*
+  A pipe to feed the status line to the program
+*/
 static int command_in = -1;
+
+/*
+  A pipe to read events from the program
+*/
 static int command_out = -1;
 
+/*
+  These variables are used to hold the command line between command_set and
+  command_start
+*/
 static char *command_line = NULL;
 static char **command_argv = NULL;
 
 
 
-int
+static int
 command_set (const char *line)
 {
   int argc;
@@ -67,7 +109,7 @@ command_set (const char *line)
 
 
 
-int
+static int
 command_start (int item_count)
 {
   if (command_argv)
@@ -88,7 +130,7 @@ command_start (int item_count)
 
 
 
-void
+static void
 command_finish (int started)
 {
   if (command_in >= 0)
@@ -106,7 +148,7 @@ command_finish (int started)
 
 
 
-void
+static void
 command_update_items (int item_count, item_t *items[])
 {
   int i;
@@ -139,6 +181,9 @@ command_update_items (int item_count, item_t *items[])
 
 
 
+/*
+  States for the automata for reading events from the program
+*/
 enum command_poll_state_t
   {
     STATE_READING_EVENT,

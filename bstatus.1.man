@@ -69,8 +69,8 @@ not be outputted over \fBstderr\fR. See \fB\-\-log\fR above for the format of
 .TP
 \fB\-k\fR, \fB\-\-kill\-delay\fR \fIdelay\fR
 Specifies how long \fBbstatus\fR should wait befour killing children with
-\fBSIGKILL\fR after interupting children with \fBSIGINT\fR. The default delay is
-5 seconds. This option takes precedence over the corresponding option in the
+\fBSIGKILL\fR after terminating children with \fBSIGTERM\fR. The default delay
+is 5 seconds. This option takes precedence over the corresponding option in the
 configuration file.
 
 

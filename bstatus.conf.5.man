@@ -53,8 +53,9 @@ not be outputted over \fBstderr\fR. See \fBlog\fR above for the format of
 .TP
 \fBkill\-delay\fR \fIdelay\fR
 Specifies how long \fBbstatus\fR should wait befour killing children with
-\fBSIGKILL\fR after interupting children with \fBSIGINT\fR. The default delay is
-5 seconds. This option is overridden by the corresponding command line option.
+\fBSIGKILL\fR after terminating children with \fBSIGTERM\fR. The default delay
+is 5 seconds. This option is overridden by the corresponding command line
+option.
 
 
 .TP
@@ -186,8 +187,8 @@ A simple clock. \fIformat\fR specifies the format string that is passed to
 
 .TP
 \fBcpu\fR \fIformat\fR
-Display information about the cpu utilization. \fIformat\fR is a string then can
-contain any the following specifiers:
+Display information about the cpu utilization, updated every 500 milliseconds.
+\fIformat\fR is a string then can contain any the following specifiers:
 .RS
 .TP
 \fB%p\fR[\fIcomparison\fB<\fItext\fB>\fR]
@@ -210,9 +211,9 @@ Displays the utilization of each core, seperating each value with the text
 
 .TP
 \fBmemory\fR \fIformat\fR
-Displays information about the utilization of system memory and swap space.
-\fIformat\fR is a string that can contain specifiers of the following format
-(with no whitespace):
+Displays information about the utilization of system memory and swap space,
+updated every 500 milliseconds. \fIformat\fR is a string that can contain
+specifiers of the following format (with no whitespace):
 .RS
 .RS
 
@@ -264,8 +265,8 @@ if \fB%pma<15<{ff0000}>\fR is specified, then the color is changed to red if
 there is less that 15 percent memory available.
 .P
 Note that this information is obtained from \fI/proc/meminfo\fR, which does not
-specified all posible fields itself, so I took liberties with calculating some
-of them myself, so if you dispute any values given, let me know.
+specify all posible fields itself, so I took liberties with calculating some of
+them myself, so if you dispute any values given, let me know.
 .RE
 
 

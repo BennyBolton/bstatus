@@ -67,4 +67,4 @@ install: all
 	install -m644 bstatus.1.gz bstatus-command.1.gz bstatus-sleep.1.gz \
                       "$(DESTDIR)/usr/share/man/man1"
 	install -m644 bstatus.conf.5.gz "$(DESTDIR)/usr/share/man/man5"
-	python3 setup.py install --root="$(DESTDIR)" --optimize=1
+	python3 setup.py install --root="$(DESTDIR)/" --optimize=1

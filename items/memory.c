@@ -1,4 +1,21 @@
 /*
+  This file is part of bstatus.
+
+  bstatus is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  bstatus is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with bstatus.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+/*
   Display memory information
   The line is generated using format_string
   The specifier format is %[p]{m,s,c}{t,f,u,c,a}
@@ -127,7 +144,7 @@ _memory_recalculate (int id)
 
   ram_info.used = ram_info.total - ram_info.free;
   swap_info.used = swap_info.total - swap_info.free;
-  swap_info.avail = swap_info.free;
+  swap_info.avail = swap_info.free + swap_info.cached;
   commit_info.free = commit_info.total - commit_info.used;
   commit_info.cached = ram_info.cached + swap_info.cached;
   commit_info.avail = commit_info.free;
