@@ -1,0 +1,321 @@
+.\" Manpage for bstatus.conf as a component of bstatus
+.\" Contact benjamin@bennybolton.com to correct any errors or typos.
+
+
+.TH bstatus.conf 5 "04 Jan 2015" "0.1.0" "bstatus.conf man page"
+
+
+
+.SH NAME
+
+bstatus.conf \- bstatus configuration file
+
+
+
+.SH DESCRIPTION
+
+\fBbstatus.conf\fR is the configuration file for \fBbstatus\fR. If not specified
+using \fB\-\-config\fR when running \fBbstatus\fR, \fBbstatus\fR uses
+\fI~/.bstatus.conf\fR if it exists, else \fI/etc/bstatus.conf\fR as the
+configuration file.
+
+
+
+.SH OPTIONS
+
+
+.TP
+\fBlog\fR \fIstream\fR:\fIfile\fR
+Specify that any messages logged to any streams specified by \fIstream\fR shall
+be logged to \fIfile\fR. Log files specified here are overridden by log files
+specified in the via the command line. \fIstream\fR should contiain one or more
+of the following characters:
+.RS
+.TP
+\fBm\fR
+Messages logged to the message stream.
+.TP
+\fBe\fR
+Messages logged to the error stream.
+.TP
+\fBa\fR
+All messages logged. \fBa\fR is equivalent to specifying \fBme\fR.
+.RE
+
+
+.TP
+\fBsuppress \fIstream\fR\fR
+Specifies that messages logged to the streams specified by \fIstream\fR shall
+not be outputted over \fBstderr\fR. See \fBlog\fR above for the format of
+\fIstream\fR.
+
+
+.TP
+\fBkill\-delay\fR \fIdelay\fR
+Specifies how long \fBbstatus\fR should wait befour killing children with
+\fBSIGKILL\fR after interupting children with \fBSIGINT\fR. The default delay is
+5 seconds. This option is overridden by the corresponding command line option.
+
+
+.TP
+\fBdisplay\fR \fIdriver\fR [\fIarguments\fR]
+Specify the display driver for \fBbstatus\fR to use for displaying the status
+line. The default display driver is \fBstandard\fR. A display driver may
+optionally take additional arguments as shown. See the section \fBDISPLAYS\fR
+below for details on the available display drivers and how to configure them.
+
+
+.TP
+\fBitem\fR \fIdriver\fR [\fIarguments\fR]
+Specifies an item to show up on the display line. A configuration file should
+typically contain multiple calls of this option. The item driver specified as
+\fIdriver\fR is used to manage the item's status line. An item driver may
+optionally take additional arguments as shown. Additionally, all immediately
+following lines that begin with at least one whitespace character are consider a
+single block, and the block is also passed as an argument to the item driver.
+See the section \fBITEMS\fR below for details on the available item drivers and
+how to configure them.
+
+
+
+.SH DISPLAYS
+
+Below is a list of the available display drivers, and how to configure them
+individually. See the \fBdisplay\fR option above for imformation on how to
+specify a display driver in the configuration file.
+
+
+.TP
+\fBstandard\fR
+The \fBstandard\fR display driver is used to output the status line in a human
+readable format that can be displayed as is, e.g. via the terminal. The
+arguments specified on the configuration line are of the format 'option', or
+\'option=value', or 'option="value with spaces"'. The available options are:
+.RS
+.TP
+\fBalign\fR
+Specify how the items are aligned in thier block if the line is shorter than its
+specified minimum width. Possible values are \fBleft\fR, \fBright\fR, or
+\fBcenter\fR. The default alignment is to be centered.
+.TP
+\fBno\-color\fR
+Does not require a value. If this option is specified, then all color codes on
+the status line are ignored.
+.TP
+\fBseperator\fR
+Specifies a seperator string to display inbetween items on the status line. The
+default value is " | ".
+.RE
+
+
+.TP
+\fBi3wm\fR
+The \fBi3wm\fR display driver is used to produce JSON output for use with
+\fIi3bar\fR(1). Note that color support is not full with this display driver, as
+\fIi3bar\fR only supports specifying a single color for an entire item on the
+status line. Options are specified in the same way as for the \fBstandard\fR
+display driver above. The available options are:
+.RS
+.TP
+\fBalign\fR
+Specify how the items are aligned in thier block if the line is shorter than its
+specified minimum width. Possible values are \fBleft\fR, \fBright\fR, or
+\fBcenter\fR. The default alignment is to be centered.
+.TP
+\fBseperator\fR
+A boolean value, i.e. either \fBtrue\fR or \fBfalse\fR, that specifies whether
+or not the seperator character should be displayed inbetween items. The default
+value is \fBtrue\fR.
+.TP
+\fBspacing\fR
+An intergral value specifying the width of the blocks seperating items on the
+display line, in pixels. Typically, this value should be odd, so that the
+seperator character is drawn in the middle. The default value is 21.
+.RE
+
+
+.TP
+\fBcommand\fR
+The \fBcommand\fR display driver is used to run an external program for
+displaying the status line. The argument line following specifies a command line
+to use for starting the program. \fIexeclp\fR(3) is used to call the program.
+
+The python module \fIbstatus_display\fR(3) is intented to be used in order to
+implement custom display drivers, although this is not a requirement.
+
+Standard input, output and error are all forwarded to the program as are, and
+the status line is fed to the program on the file descriptor 3, with each item
+being of the format \fImin\-width\fR\fB:\fIline\fR followed by a new line
+character, with each total status line seperated by a additional new line.
+\fImin\-width\fR specifies the minimum ammount of characters requested by the
+item to display, and \fIline\fR is the status of the item, with format codes
+intact. See the \fBITEMS\fR section below for information on how to use these.
+
+Events are read from the program on file descriptor 4 in the following format:
+.RS
+.TP
+\fBclick\fR \fIindex\fR \fIbutton\fR \fIposition\fR
+Specifies a click event occured for the item with \fIindex\fR (as read on 3,
+starting at 0), for the mouse button \fIbutton\fR at the position within the
+item of \fIposition\fR.
+.RE
+
+
+
+.SH ITEMS
+
+Below is a list of the available item drivers, and how to confgure them
+individually. See the \fBitem\fR option above for information on how to specify
+an item driver in the configuration file.
+
+For the outputted status lines for the below items, optional components to the
+output can be specified by surrounding the text with \fB[\fR and \fB]\fR, and
+if the status line is too long, the display driver may remove the components of
+the status line specified like such. Colors can be specified as
+\fB{\fIcolor\fB}\fR, where \fIcolor\fR is a 6 digit hexidecimal value with the
+components for red, green and blue layed out as RRGGBB, e.g. \fB{ff0000}\fR is
+the color red. Literal characters for \fB[\fR, \fB]\fR, \fB{\fR, and \fB}\fR can
+be specified by escaping the characters with a \fB\\\fR.
+
+
+.TP
+\fBclock\fR \fIformat\fR
+A simple clock. \fIformat\fR specifies the format string that is passed to
+\fBstrftime\fR(3).
+
+
+.TP
+\fBcpu\fR \fIformat\fR
+Display information about the cpu utilization. \fIformat\fR is a string then can
+contain any the following specifiers:
+.RS
+.TP
+\fB%p\fR[\fIcomparison\fB<\fItext\fB>\fR]
+Displays the utilization of the total processor, as a percentage to 1 decimal
+place of accuracy, unless a comparison has been specified, where
+\fIcomparison\fR is one of \fB>\fR, \fB>=\fR, \fB<\fR, \fB<=\fR, \fB=\fR, or
+\fB!=\fR, immediately followed by an integer value, in which case the
+utilization is compared to this value as appropriate, and if the comparison is
+true, \fItext\fR is displayed, else nothing is.
+.TP
+\fB%c\fIN\fR[\fIcomparison\fB<\fItext\fB>\fR]
+Displays the utilization of the \fIN\fRth core (starting from 0).
+\fIcomparison\fR is defined as above with \fB%p\fR.
+.TP
+\fB%C<\fIseperator\fB>\fR
+Displays the utilization of each core, seperating each value with the text
+\fIseperator\fR
+.RE
+
+
+.TP
+\fBmemory\fR \fIformat\fR
+Displays information about the utilization of system memory and swap space.
+\fIformat\fR is a string that can contain specifiers of the following format
+(with no whitespace):
+.RS
+.RS
+
+\fB%\fR[\fBp\fR]\fIgroup\fR \fIitem\fR[\fIcomparison\fB<\fItext\fB>\fR]
+.RE
+
+\fIgroup\fR specifies the kind of memory to ask about. Possible values for
+\fIgroup\fR are:
+.TP
+\fBm\fR
+Request information about system memory (RAM).
+.TP
+\fBs\fR
+Request information about swap space.
+.TP
+\fBc\fR
+Request information about total system commit.
+.P
+\fIitem\fR speficies what information to request of the memory group. Possible
+values for \fIitem\fR are:
+.TP
+\fBt\fR
+The total ammount of memory (or memory limit).
+.TP
+\fBf\fR
+The ammount of memory free.
+.TP
+\fBu\fR
+The ammount of memory used.
+.TP
+\fBc\fR
+The ammount of memory cached.
+.TP
+\fBa\fR
+The ammount of available memory.
+.P
+If \fBp\fR is specified, The memory information request is displayed as a
+percentage of the total memory in the group, else it is displayed in a human
+readable format with an appropriate suffix.
+.P
+If a comparison has been specified, where \fIcomparison\fR is one of \fB>\fR,
+\fB>=\fR, \fB<\fR, \fB<=\fR, \fB=\fR, or \fB!=\fR, immediately followed by an
+integer value, then the memory memory information requested is compared, as
+kilobytes, to the value specified, unless \fBp\fR has been specified, in which
+case the memory information requested as a percentage of the total memory in the
+group is cast to an integer and compared to the value specified. If the
+comparison is true, then \fItext\fR is displayed, else nothing is. For example,
+if \fB%pma<15<{ff0000}>\fR is specified, then the color is changed to red if
+there is less that 15 percent memory available.
+.P
+Note that this information is obtained from \fI/proc/meminfo\fR, which does not
+specified all posible fields itself, so I took liberties with calculating some
+of them myself, so if you dispute any values given, let me know.
+.RE
+
+
+.TP
+\fBcommand\fR [\fIprogram\fR \fIarguments\fR ...]
+Specifies a custom item, that will use external program to generate the status
+line. If \fIprogram\fR is specified, then it is used to generate the status
+line, else defaultly, \fIbstatus-command\fR(1) is used.
+
+A block of code may follow this line, with each line beginning with a whitespace
+character. The block is passed to the program as an additional argument.
+
+The program should output updated status lines to standard output, and can
+specify the minimum width of the item my outputing a line that begins with a
+\'\fB!\fR', followed by an integral value that is the minimum width.
+
+Events are fed into standard input of the program, in the following format:
+.RS
+.TP
+\fBclick\fR \fIbutton\fR \fIposition\fR
+A mouse button click event. This states the the mouse button \fIbutton\fR was
+clicked on the item at \fIposition\fR in the status line (\fIposition\fR will be
+\fB\-1\fR if unsupported by the display driver.
+.RE
+
+
+
+.SH EXAMPLE
+
+see \fI/etc/bstatus.conf\fR
+
+
+
+.SH COPYRIGHT
+
+Copyright \(co 2013 Benjamin Bolton.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+
+.P
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+
+
+.SH SEE ALSO
+
+\fIbstatus\fR(1), \fIbstatus-command\fR(1)
+
+
+
+.SH AUTHOR
+
+Benjamin Bolton (benjamin@bennybolton.com)

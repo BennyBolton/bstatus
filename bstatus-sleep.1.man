@@ -1,0 +1,62 @@
+.\" Manpage for bstatus-sleep, component of bstatus
+.\" Contact benjamin@bennybolton.com to correct any errors or typos.
+
+
+.TH bstatus-sleep 1 "04 Jan 2015" "0.1.0" "bstatus-sleep man page"
+
+
+
+.SH NAME
+
+bstatus-sleep \- Sleep until standard input is available
+
+
+
+.SH SYNOPSIS
+
+\fBbstatus-sleep\fR [\fItimeout\fR]
+
+
+
+.SH DESCRIPTION
+
+\fBbstatus-sleep\fR is an incredibly simple program, made as a component to
+bstatus in order to make up for a lack of apropriate (standard) facilities in
+the default shell.
+
+\fBbstatus-sleep\fR shall sleep for \fItimeout\fR seconds, or 0 seconds if
+\fItimeout\fR is unspecified, or indefinitely if \fItimeout\fR is \fB\-1\fR.
+\fBbstatus-sleep\fR will exit befour the timeout is reached if either
+interrupted by a signal, or if data becomes ready to read on standard input.
+
+\fItimeout\fR can be a non\-negative real value or \fB-1\fR. If \fItimeout\fR
+begins with a '\-' not followed by a '1', \fBbstatus-sleep\fR will display usage
+information. This is simply for usability purposes.
+
+\fBbstatus-sleep\fR will exit with a status of 0 if input is available, or has
+become available, else an exit status of 0 if no input is available. This allows
+\fBbstatus-sleep\fR to be used in order to poll standard input to check if data
+is available, without blocking.
+
+
+
+.SH COPYRIGHT
+
+Copyright \(co 2013 Benjamin Bolton.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+
+.P
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+
+
+.SH SEE ALSO
+
+\fIbstatus\fR(1), \fIbstatus-command\fR(1), \fIselect\fR(2)
+
+
+
+.SH AUTHORS
+
+Benjamin Bolton (benjamin@bennybolton.com)

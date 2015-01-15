@@ -1,0 +1,119 @@
+.\" Manpage for bstatus-command, component of bstatus
+.\" Contact benjamin@bennybolton.com to correct any errors or typos.
+
+
+.TH bstatus-command 1 "04 Jan 2015" "0.1.0" "bstatus-command man page"
+
+
+
+.SH NAME
+
+bstatus-command \- Wrapper script for running custom scripts in bstatus
+
+
+
+.SH SYNOPSIS
+
+\fBbstatus-command\fR \fIscript\fR
+
+
+
+.SH DESCRIPTION
+
+\fBbstatus-command\fR is a wrapper script used by the item driver for custom
+scripts in \fBbstatus\fR.
+
+\fBbstatus-command\fR sets up an appropriate facility for handling events passed
+by \fBbstatus\fR, by defining a series of functions that the user can make use of
+in \fIscript\fR, and then \fBbstatus-command\fR runs \fIscript\fR via
+\fIeval\fR(1).
+
+
+
+.SH FUNCTIONS
+
+
+.TP
+\fBset\-delay\fR \fIdelay\fR
+Set the loop delay to \fIdelay\fR. \fIdelay\fR represents the value
+that will be passed to \fIbstatus-sleep\fR(1) in \fBdo\-loop\fR.
+The default delay is 1 second.
+
+
+.TP
+\fBdisplay\-line\fR \fIdelay\fR \fIline\fR
+This function will update the items status line to \fIline\fR, and then calls
+\fIbstatus-sleep\fR(1) with \fIdelay\fR. This function is specifically made to
+be used with event handlers, so they can display a line, and have it remain for
+some ammount of time befour being reset in \fBloop\fR().
+
+
+.TP
+\fBclick\fR \fIbutton\fR \fIposition\fR
+\fBclick\fR will be called when a click event occurs, passing the mouse button
+index that clicked as \fIbutton\fR and the index within the status line clicked
+as \fIposition\fR (or \fB\-1\fR is \fIposition\fR is not supported by the
+display driver). This function should be re-defined in \fIscript\fR.
+
+
+.TP
+\fBloop\fR \fIdelay\fI
+\fBloop\fR is called every loop cycle in \fBdo\-loop\fR, with the time since the
+last call to \fBloop\fR in milliseconds passed as \fIdelay\fR. This function
+should be re-defined in \fIscript\fR, containing the main loop of the script.
+
+
+.TP
+\fBdo\-loop\fR
+\fBdo\-loop\fR is the main loop of \fBbstatus-command\fR, and is called after
+\fIscript\fR has returned.
+
+
+
+.SH EXAMPLE
+
+The following is a example usage in the configuration file that will count left
+mouse clicks minus right mouse clicks, showing the usage of the various
+features available:
+.nf
+
+item command
+    clicks=0
+    function click {
+        case $1 in
+            1)  # Left mouse button
+                clicks=$(expr $clicks + 1)
+                ;;
+            3)  # Right mouse button
+                clicks=$(expr $clicks - 1)
+                ;;
+        esac
+    }
+    function loop {
+        echo $clicks
+    }
+
+.fi
+
+
+
+.SH COPYRIGHT
+
+Copyright \(co 2013 Benjamin Bolton.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+
+.P
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+
+
+.SH SEE ALSO
+
+\fIbstatus\fR(1), \fIbstatus.conf\fR(5), \fIbstatus-sleep\fR(1)
+
+
+
+.SH AUTHORS
+
+Benjamin Bolton (benjamin@bennybolton.com)

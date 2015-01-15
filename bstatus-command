@@ -1,0 +1,110 @@
+#!/bin/bash
+
+
+##
+##  This script is used to run custom items in bstatus
+##  See bstatus(1) for more information
+##
+
+
+# The program to use for sleeping, and polling standard input
+BSTATUS_SLEEP=/usr/bin/bstatus-sleep
+
+
+# The current delay between each call to loop
+__sleep_time=1
+
+
+
+# Usage: set-delay <new-delay>
+# Alter the delay between each call to loop
+function set-delay {
+    __sleep_time=$1
+}
+
+
+
+# Usage: display-line <time> <line>
+# Update the item line while reading an event
+# <time> specifies the ammount of time this item should be displayed for, befour
+# returning to displaying the regular display line
+function display-line {
+    echo -e "$2"
+    $BSTATUS_SLEEP "$1"
+}
+
+
+
+# Usage: click <button> <position>
+# User definable function, called on a click event
+# <button> is the mouse button index, 1 for left, 2 for middle, etc, and
+# <position> is the index of the character whithin the line clicked, or -1 if
+# unsupported by the display driver
+# Note: Do not use echo to update the display line, see display-line
+function click {
+    return 0
+}
+
+
+
+# Usage: read-event
+# Reads all events available, calling the appropriate callbacks
+# Also kills the process if the parent is dead
+function read-event {
+    if ! kill -s 0 $PPID &> /dev/null;
+    then
+        exit 0
+    fi
+
+    while $BSTATUS_SLEEP;
+    do
+        if ! kill -s 0 $PPID &> /dev/null;
+        then
+            exit 0
+        fi
+
+        read line
+        if [[ "$line" == click* ]]
+        then
+            click $(echo $line | awk '{print ($2 " " $3);}')
+        fi
+    done
+}
+
+
+
+# Usage: loop
+# User definable function, called repeatedly on each cycle of loop
+# The user should update the display line here, using echo
+function loop {
+    return 0
+}
+
+
+
+# Usage: do-loop <delay>
+# The loop itself
+# The user should call this function when ready to enter the loop, specifying
+# the delay inbetween calls to loop
+function do-loop {
+    __last_time="$(echo -n $(date +%s%N) | head -c-6)"
+    while true;
+    do
+        if ! $BSTATUS_SLEEP
+        then
+            __now_time="$(echo -n $(date +%s%N) | head -c-6)"
+            loop "$(expr "$__now_time" - "$__last_time")"
+            __last_time="$__now_time"
+            $BSTATUS_SLEEP $__sleep_time
+        fi
+
+        read-event
+    done
+}
+
+
+
+# Run the script attached (if specified)
+[ -n "$1" ] && eval "$1"
+
+do-loop
