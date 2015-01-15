@@ -141,8 +141,9 @@ The \fBcommand\fR display driver is used to run an external program for
 displaying the status line. The argument line following specifies a command line
 to use for starting the program. \fIexeclp\fR(3) is used to call the program.
 
-The python module \fIbstatus_display\fR(3) is intented to be used in order to
-implement custom display drivers, although this is not a requirement.
+The python module \fIbstatus_display\fR is intented to be used in order to
+implement custom display drivers, although this is not a requirement. Use
+\fBpydoc bstatus_display\fR for help on using this module.
 
 Standard input, output and error are all forwarded to the program as are, and
 the status line is fed to the program on the file descriptor 3, with each item
