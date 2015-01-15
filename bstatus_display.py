@@ -26,11 +26,14 @@ from os import fdopen
 COLOR_DEFAULT = 0x1000000
 
 
-# Stream to read status lines from
-_in_stream = fdopen (3)
+try:
+    # Stream to read status lines from
+    _in_stream = fdopen (3)
 
-# Stream to write events to
-_out_stream = fdopen (4, "w", 1)
+    # Stream to write events to
+    _out_stream = fdopen (4, "w", 1)
+except:
+    pass
 
 
 # States for parse_item
