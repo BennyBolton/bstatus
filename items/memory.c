@@ -153,7 +153,7 @@ _memory_recalculate (int id)
 
 
 static const char*
-_memory_format_callback (const char **spec)
+_memory_format_callback (const char **spec, void *data)
 {
   static char buf[32];
   const char *str = NULL;
@@ -271,7 +271,7 @@ _memory_update (item_t *item, int id, int delay)
   _memory_recalculate (id);
 
   if (item)
-    format_string (&item->text, item->line, _memory_format_callback);
+    format_string (&item->text, item->line, _memory_format_callback, NULL);
 
   return 500 - (item_get_time (0)->msec % 500);
 }

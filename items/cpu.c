@@ -95,7 +95,7 @@ _cpu_initialize (void)
       return 0;
     }
 
-  while ((c = fgetc (fp)) > 0)
+  while ((c = fgetc (fp)) && c != EOF)
     switch (state)
       {
         case CPU_READING_NAME_:
@@ -188,7 +188,7 @@ _cpu_recalculate (int id, int delay)
 
   state = CPU_READING_NAME_;
 
-  while ((c = fgetc (fp)) > 0)
+  while ((c = fgetc (fp)) && c != EOF)
     switch (state)
       {
       case CPU_READING_NAME_:
@@ -209,7 +209,7 @@ _cpu_recalculate (int id, int delay)
             // Read and increment the integral suffix
 
             i = -1;
-            while ((c = fgetc (fp)) > 0)
+            while ((c = fgetc (fp)) && c != EOF)
               {
                 if (c < '0' || c > '9')
                   break;
@@ -258,7 +258,7 @@ _cpu_recalculate (int id, int delay)
   Callback used with format_string
 */
 static const char*
-_cpu_format_callback (const char **spec)
+_cpu_format_callback (const char **spec, void *data)
 {
   static char buf[128];
   char *buf_pos;
@@ -366,7 +366,7 @@ _cpu_update (item_t *item, int id, int delay)
   _cpu_recalculate (id, delay);
 
   if (item && cpu_usage)
-    format_string (&item->text, item->line, _cpu_format_callback);
+    format_string (&item->text, item->line, _cpu_format_callback, NULL);
 
   return 500 - (item_get_time (0)->msec % 500);
 }

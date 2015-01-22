@@ -210,5 +210,8 @@ item_driver_memory (char *line, char *block);
 item_t*
 item_driver_command (char *line, char *block);
 
+item_t*
+item_driver_network (char *line, char *block);
+
 
 #endif

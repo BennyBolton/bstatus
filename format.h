@@ -24,17 +24,19 @@
   The function should increment *spec as neccessary to point to the end of the
   format specifyer, and return the string generated
 */
-typedef const char *(*format_callback) (const char **spec);
+typedef const char *(*format_callback) (const char **spec, void *data);
 
 
 /*
   Generate a string containing format specificated (must begin with %) into *buf
   **buf is reallocated as neccessary
+  data is passed to func
   Will always use '%' for substrings %%, and no call to func is made
   Note that if the formatted string is empty, *buf may be NULL
  */
 int
-format_string (char **buf, const char *format, format_callback func);
+format_string (char **buf, const char *format,
+               format_callback func, void *data);
 
 
 /*

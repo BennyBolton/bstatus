@@ -25,7 +25,8 @@
 
 
 static const char*
-_format_token (const char **position, size_t *token_len, format_callback func)
+_format_token (const char **position, size_t *token_len,
+               format_callback func, void *data)
 {
   int escaped = 0;
   const char *str;
@@ -42,7 +43,7 @@ _format_token (const char **position, size_t *token_len, format_callback func)
         return NULL;
       else
         {
-          str = func (position);
+          str = func (position, data);
           if (str)
             {
               *token_len = strlen (str);
@@ -67,7 +68,8 @@ _format_token (const char **position, size_t *token_len, format_callback func)
 
 
 int
-format_string (char **buf, const char *format, format_callback func)
+format_string (char **buf, const char *format,
+               format_callback func, void *data)
 {
   const char *token;
   char *new_buf;
@@ -83,7 +85,7 @@ format_string (char **buf, const char *format, format_callback func)
   if (*buf)
     **buf = 0;
 
-  while ((token = _format_token (&format, &token_len, func)))
+  while ((token = _format_token (&format, &token_len, func, data)))
     if (token_len > 0)
       {
         new_buf = realloc (*buf, buf_len + token_len + 1);

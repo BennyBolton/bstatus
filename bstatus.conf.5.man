@@ -272,6 +272,32 @@ them myself, so if you dispute any values given, let me know.
 
 
 .TP
+\fBnetwork \fIinterface\fR \fIformat\fR
+Displays information about the utilization of the network interface
+\fIinterface\fR, updated every 500 milliseconds. If the interface is \fB*\fR,
+then all interface stats available are accumulated together. \fIformat\fR is a
+string that can contain the following specifiers:
+.RS
+.TP
+\fB%d\fR[\fIcomparison\fB<\fItext\fB>\fR]
+The total bytes downloaded on the interface.
+.TP
+\fB%D\fR[\fIcomparison\fB<\fItext\fB>\fR]
+The interface utilization being downloaded in a rate of bytes per second.
+.TP
+\fB%u\fR[\fIcomparison\fB<\fItext\fB>\fR]
+The total bytes uploaded on the interface.
+.TP
+\fB%U\fR[\fIcomparison\fB<\fItext\fB>\fR]
+The interface utilization being uploaded in a rate of bytes per second.
+.P
+Above where comparisons are defined, they are defined the same as for the
+\fBmemory\fR item above.
+.RE
+
+
+
+.TP
 \fBcommand\fR [\fIprogram\fR \fIarguments\fR ...]
 Specifies a custom item, that will use external program to generate the status
 line. If \fIprogram\fR is specified, then it is used to generate the status

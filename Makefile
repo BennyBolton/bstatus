@@ -12,7 +12,8 @@ TARGET = bstatus
 C_SOURCES = bstatus.c display.c item.c loop.c  log.c config.c configure.c \
             format.c process.c \
             displays/standard.c displays/i3wm.c displays/command.c \
-            items/clock.c items/command.c items/cpu.c items/memory.c
+            items/clock.c items/command.c items/cpu.c items/memory.c \
+            items/network.c
 
 TXT_SOURCES = help.txt
 
@@ -54,7 +55,7 @@ clean:
                bstatus-sleep.o bstatus-sleep build
 
 test: all
-	i3bar -b bar-0
+	i3bar -b bar-1
 
 install: all
 	install -d "$(DESTDIR)/usr/bin/"

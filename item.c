@@ -53,6 +53,7 @@ static struct
       {"command", item_driver_command},
       {"cpu",     item_driver_cpu},
       {"memory",  item_driver_memory},
+      {"network", item_driver_network},
 
       {NULL, NULL} // Mark the end of the array
     };
@@ -188,6 +189,9 @@ item_t*
 item_alloc (size_t size, char *line, char *block)
 {
   item_t *item;
+
+  if (!line)
+    return NULL;
 
   if (size < sizeof (item_t))
     {
