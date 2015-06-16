@@ -54,10 +54,10 @@
 static int cpu_count = 0;
 
 /*
-  The current cpu utilization, out of 100, with the exception of the first
-  element, which should be a summation of the rest
+  The current cpu utilization, out of 1, with the first element being the total
+  utilization, and each subsequent element being core utilizations
 */
-static int *cpu_usage;
+static float *cpu_usage;
 
 /*
   The previous values read from /proc/stat
@@ -128,7 +128,7 @@ _cpu_initialize (void)
   // Allocate the array's used
   if (!cpu_usage)
     {
-      cpu_usage = malloc (sizeof (int) * (cpu_count));
+      cpu_usage = malloc (sizeof (float) * (cpu_count));
       if (!cpu_usage)
         {
           log_perror ("_cpu_initialize: malloc");
@@ -231,17 +231,16 @@ _cpu_recalculate (int id, int delay)
                 if (cpu_sums[i] < 0)
                   {
                     cpu_sums[i] = user + userl + system;
-                    if (i > 0)
-                      cpu_usage[i] = 100;
-                    else
-                      cpu_usage[i] = ((cpu_count == 1) ? 100
-                                      : (cpu_count - 1) * 100);
+                    cpu_usage[i] = 1.0f;
                   }
                 else
                   {
                     cpu_usage[i] = (user + userl + system) - cpu_sums[i];
                     cpu_sums[i] = (user + userl + system);
-                    cpu_usage[i] = cpu_usage[i] * 100000 / delay / jiffies;
+                    cpu_usage[i] *= 1000.0f / (float) delay / (float) jiffies;
+                    if (i == 0)
+                      cpu_usage[i] /= (float) ((cpu_count == 1) ? 1
+                                               : cpu_count);
                   }
               }
           }
@@ -255,6 +254,29 @@ _cpu_recalculate (int id, int delay)
 
 
 /*
+  Used by _cpu_format_callback. Reads the scale for %c and %C options, returning
+  the value (else 100 if not specified)
+*/
+static int
+_cpu_format_read_scale (const char **spec)
+{
+  int value = 100;
+
+  if (**spec == '/')
+    {
+      (*spec)++;
+      value = 0;
+
+      for (; (**spec) >= '0' && (**spec) <= '9'; (*spec)++)
+        value = value * 10 + **spec - '0';
+    }
+
+  return value;
+}
+
+
+
+/*
   Callback used with format_string
 */
 static const char*
@@ -263,9 +285,8 @@ _cpu_format_callback (const char **spec, void *data)
   static char buf[128];
   char *buf_pos;
   const char *str;
-  int i, printed;
+  int i, printed, scale;
   size_t len, remain;
-  float f;
 
   if (!spec || !*spec || !cpu_usage)
     return NULL;
@@ -275,14 +296,13 @@ _cpu_format_callback (const char **spec, void *data)
   switch (**spec)
     {
       case 'p': // Total percentage utilization
-        f = cpu_usage[0] / ((cpu_count == 1) ? 1.0f : (float) (cpu_count - 1));
         (*spec)++;
 
-        str = format_read_comparison (spec, (long int) f);
+        str = format_read_comparison (spec, cpu_usage[0] * 100);
         if (str)
           return str;
 
-        snprintf (buf, sizeof (buf), "%.1f", f);
+        snprintf (buf, sizeof (buf), "%.1f", cpu_usage[0] * 100.0f);
 
         return buf;
         break;
@@ -291,11 +311,11 @@ _cpu_format_callback (const char **spec, void *data)
         (*spec)++;
 
         for (i = 0; **spec >= '0' && **spec <= '9'; (*spec)++)
-          {
-            i *= 10;
-            i += **spec - '0';
-          }
+            i = i * 10 + **spec - '0';
+
         i++;
+
+        scale = _cpu_format_read_scale (spec);
 
         if (i > 0 && i < cpu_count)
           {
@@ -303,7 +323,7 @@ _cpu_format_callback (const char **spec, void *data)
             if (str)
               return str;
 
-            snprintf (buf, sizeof (buf), "%d", cpu_usage[i]);
+            snprintf (buf, sizeof (buf), "%d", (int) (cpu_usage[i] * scale));
             return buf;
           }
 
@@ -312,6 +332,9 @@ _cpu_format_callback (const char **spec, void *data)
       case 'C': // Utilization on all cores
         (*spec)++;
         len = 0;
+
+        scale = _cpu_format_read_scale (spec);
+
         if (**spec == '<')
           {
             (*spec)++;
@@ -342,7 +365,8 @@ _cpu_format_callback (const char **spec, void *data)
                 buf_pos += (len > remain) ? remain : len;
               }
 
-            printed = snprintf (buf_pos, remain + 1, "%d", cpu_usage[i]);
+            printed = snprintf (buf_pos, remain + 1, "%d",
+                                (int) (cpu_usage[i] * scale));
 
             if (printed > 0)
               {

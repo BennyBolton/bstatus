@@ -200,13 +200,15 @@ place of accuracy, unless a comparison has been specified, where
 utilization is compared to this value as appropriate, and if the comparison is
 true, \fItext\fR is displayed, else nothing is.
 .TP
-\fB%c\fIN\fR[\fIcomparison\fB<\fItext\fB>\fR]
+\fB%c\fIN\fR[\fB/\fIscale\fR][\fIcomparison\fB<\fItext\fB>\fR]
 Displays the utilization of the \fIN\fRth core (starting from 0).
+The displayed value will be an integer in the range from 0 to \fIscale\fR,
+which defaults to 100.
 \fIcomparison\fR is defined as above with \fB%p\fR.
 .TP
-\fB%C<\fIseperator\fB>\fR
+\fB%C\fR[\fB/\fIscale\fR]\fB<\fIseperator\fB>\fR
 Displays the utilization of each core, seperating each value with the text
-\fIseperator\fR
+\fIseperator\fR.
 .RE
 
 

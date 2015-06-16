@@ -55,7 +55,7 @@ clean:
                bstatus-sleep.o bstatus-sleep build
 
 test: all
-	i3bar -b bar-1
+	i3bar -b bar-0
 
 install: all
 	install -d "$(DESTDIR)/usr/bin/"
