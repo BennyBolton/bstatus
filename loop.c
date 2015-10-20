@@ -319,8 +319,17 @@ loop_do (int item_count, item_t **items)
       befour.tv_sec = now.tv_sec;
       befour.tv_nsec = now.tv_nsec;
 
-      timeout.tv_sec = 0;
-      timeout.tv_usec = wait_time * 1000;
+      
+      if (wait_time > 0)
+        {
+          timeout.tv_sec  =  wait_time / 1000;
+          timeout.tv_usec = (wait_time % 1000) * 1000;
+        }
+      else
+        {
+          timeout.tv_sec = 0;
+          timeout.tv_usec = 0;
+        }
 
       loop_watched_fds = loop_watching_fds;
       if (select (FD_SETSIZE, &loop_watched_fds,

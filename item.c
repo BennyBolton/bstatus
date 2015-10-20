@@ -139,6 +139,9 @@ items_update (int item_count, item_t **items, int delay)
   if (!items)
     return 0;
 
+  if (delay < 0)
+    delay = 0;
+
   item_get_time (delay);
 
   for (i = 0; i < item_count; i++)
@@ -441,6 +444,9 @@ item_current_length (item_t *item, int shorten)
 
 
 
+#define ABS_DIFF(a, b) (((a) > (b)) ? ((a) - (b)) : ((b) - (a)))
+
+
 item_time_t*
 item_get_time (int delay)
 {
@@ -454,7 +460,7 @@ item_get_time (int delay)
       res.msec %= 1000;
 
       clock_gettime (CLOCK_REALTIME, &t);
-      if (res.sec - t.tv_sec > 1 || t.tv_sec - res.sec > 1) // Drifted away
+      if (ABS_DIFF (res.sec, t.tv_sec) > 1) // Drifted away
         {
           res.sec = t.tv_sec;
           res.msec = t.tv_nsec / 1000000;
