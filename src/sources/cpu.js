@@ -1,6 +1,6 @@
 const Repeat = require("./repeat");
 const fs = require("fs");
-const { alignTimeout, exec } = require("../util");
+const { exec, ResultCache } = require("../util");
 
 
 /*
@@ -15,34 +15,37 @@ const formatRegexp = /%%|%\d*(\.\d+)?p|%\d+(-\d+)?(\.\d+)?c|%\d*(\.\d+)?(\((([^\
 const parseFormatRegexp = /^%(\d*)(-(\d+))?(\.(\d+))?(\((([^\\\)]+|\\.)*)\))?[pcC]$/;
 
 
+const cpuStatsCache = new ResultCache(100);
 function getCpuStats() {
-    return new Promise((resolve, reject) => {
-        fs.readFile("/proc/stat", (err, data) => {
-            if (err) {
-                reject(err);
-            } else {
-                let res = { time: Date.now(), count: 0 };
-                try {
-                    for (let line of data.toString().split("\n")) {
-                        let match = line.match(parseCpuStatsRegexp);
-                        if (match) {
-                            let index = 0;
-                            if (match[1].length > 0) {
-                                index = +match[1] + 1;
-                                if (index > res.count) res.count = index;
+    return cpuStatsCache.get(() =>
+        new Promise((resolve, reject) => {
+            fs.readFile("/proc/stat", (err, data) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    let res = { time: Date.now(), count: 0 };
+                    try {
+                        for (let line of data.toString().split("\n")) {
+                            let match = line.match(parseCpuStatsRegexp);
+                            if (match) {
+                                let index = 0;
+                                if (match[1].length > 0) {
+                                    index = +match[1] + 1;
+                                    if (index > res.count) res.count = index;
+                                }
+                                let values = match[2].match(/\d+/g);
+                                res[index] = +values[0] + +values[2];
                             }
-                            let values = match[2].match(/\d+/g);
-                            res[index] = +values[0] + +values[2];
                         }
+                        res[0] /= res.count;
+                    } catch (err) {
+                        return reject(err);
                     }
-                    res[0] /= res.count;
-                } catch (err) {
-                    return reject(err);
+                    resolve(res);
                 }
-                resolve(res);
-            }
-        });
-    });
+            });
+        })
+    );
 }
 
 

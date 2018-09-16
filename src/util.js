@@ -20,6 +20,25 @@ class Defer {
 }
 
 
+class ResultCache {
+    constructor(timeout) {
+        this.lastUpdate = 0;
+        this.timeout = timeout;
+        this.value = null;
+    }
+
+    get(cb) {
+        let now = Date.now();
+        if (now > this.lastUpdate + this.timeout) {
+            this.lastUpdate = now;
+            return this.value = cb();
+        } else {
+            return this.value;
+        }
+    }
+}
+
+
 function alignTimeout(delay, cb) {
     let time = Date.now() % delay;
     return setTimeout(cb, delay - time);
@@ -57,6 +76,7 @@ function fork(cmd) {
 
 module.exports = {
     Defer,
+    ResultCache,
     alignTimeout,
     parseColor,
     exec,

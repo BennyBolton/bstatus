@@ -1,6 +1,6 @@
 const Repeat = require("./repeat");
 const fs = require("fs");
-const { alignTimeout } = require("../util");
+const { ResultCache } = require("../util");
 
 
 /*
@@ -16,33 +16,36 @@ const parseFormatRegexp = /^%(\((.*)\))?(%|[rt][sSp])$/;
 const prefixes = ["B/s", "kB/s", "MB/s", "GB/s", "TB/s", "PB/s", "EB/s", "ZB/s", "YB/s"];
 
 
+const networkStatsCache = new ResultCache(100);
 function getNetworkStats() {
-    return new Promise((resolve, reject) => {
-        fs.readFile("/proc/net/dev", (err, data) => {
-            if (err) {
-                reject(err);
-            } else {
-                let res = { time: Date.now(), stats: [] };
-                try {
-                    for (let line of data.toString().split("\n")) {
-                        let match = line.match(parseNeworkStatsRegexp);
-                        if (match) {
-                            res.stats.push({
-                                name: match[1],
-                                receiveBytes: +match[2],
-                                receivePackets: +match[3],
-                                transmitBytes: +match[5],
-                                transmitPackets: +match[6]
-                            });
+    return networkStatsCache.get(() =>
+        new Promise((resolve, reject) => {
+            fs.readFile("/proc/net/dev", (err, data) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    let res = { time: Date.now(), stats: [] };
+                    try {
+                        for (let line of data.toString().split("\n")) {
+                            let match = line.match(parseNeworkStatsRegexp);
+                            if (match) {
+                                res.stats.push({
+                                    name: match[1],
+                                    receiveBytes: +match[2],
+                                    receivePackets: +match[3],
+                                    transmitBytes: +match[5],
+                                    transmitPackets: +match[6]
+                                });
+                            }
                         }
+                    } catch (err) {
+                        return reject(err);
                     }
-                } catch (err) {
-                    return reject(err);
+                    resolve(res);
                 }
-                resolve(res);
-            }
-        });
-    });
+            });
+        })
+    );
 }
 
 

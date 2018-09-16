@@ -1,6 +1,6 @@
 const Repeat = require("./repeat");
 const fs = require("fs");
-const { alignTimeout } = require("../util");
+const { ResultCache } = require("../util");
 
 
 /*
@@ -18,27 +18,30 @@ const formatRegexp = /%(%|[mst][uaftUAFT])/g;
 const prefixes = ["kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
 
 
+const memoryStatsCache = new ResultCache(100);
 function getMemoryStats() {
-    return new Promise((resolve, reject) => {
-        fs.readFile("/proc/meminfo", (err, data) => {
-            if (err) {
-                reject(err);
-            } else {
-                let res = {};
-                try {
-                    for (let line of data.toString().split("\n")) {
-                        let match = line.match(parseMeminfoRegexp);
-                        if (match) {
-                            res[match[1]] = parseInt(match[2]);
+    return memoryStatsCache.get(() =>
+        new Promise((resolve, reject) => {
+            fs.readFile("/proc/meminfo", (err, data) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    let res = {};
+                    try {
+                        for (let line of data.toString().split("\n")) {
+                            let match = line.match(parseMeminfoRegexp);
+                            if (match) {
+                                res[match[1]] = parseInt(match[2]);
+                            }
                         }
+                    } catch (err) {
+                        return reject(err);
                     }
-                } catch (err) {
-                    return reject(err);
+                    resolve(res);
                 }
-                resolve(res);
-            }
-        });
-    });
+            });
+        })
+    );
 }
 
 

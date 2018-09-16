@@ -1,2 +1,3 @@
-bstatus.js
-node_modules
+/bstatus.js
+/node_modules
+/dev.js
