@@ -35,14 +35,18 @@ class I3Bar extends Output {
         super();
         this.config = config || {};
         this.first = true;
-        process.stdout.write("{ \"version\": 1, \"click_events\": true }\n[\n");
-        process.stdin.pipe(JSONStream.parse("*")).on("data", data => {
-            let match = data.name && data.name.match(/^index_(\d+)$/);
-            if (match) this.click(+match[1], data.button);
-        });
+        this.writtenHeader = false;
     }
 
     display(sources) {
+        if (!this.writtenHeader) {
+            process.stdout.write("{ \"version\": 1, \"click_events\": true }\n[\n");
+            process.stdin.pipe(JSONStream.parse("*")).on("data", data => {
+                let match = data.name && data.name.match(/^index_(\d+)$/);
+                if (match) this.click(+match[1], data.button);
+            });
+        }
+        this.writtenHeader = true;
         process.stdout.write((this.first ? "" : ",") + JSON.stringify(
             sources.map((source, i) => ({
                 name: `index_${i}`,
