@@ -1,24 +1,29 @@
 const Repeat = require("./repeat");
 const fs = require("fs");
-const { ResultCache } = require("../util");
+const XRegExp = require("xregexp");
+const { resultCache, Formatter, formatSpeed } = require("../util");
 
 
-/*
-    TODO:
+const parseNeworkStatsRegexp = XRegExp(`
+    ^
+    \\s* (?<name> [^:]+):
+    \\s* (?<rs> \\d+)
+    \\s+ (?<rp> \\d+)
+    (\\s+\\d+){6}
+    \\s+ (?<ts> \\d+)
+    \\s+ (?<tp> \\d+)
+    \\s
+`, "x");
 
-    - Conditionals
-*/
+const formatRegexp = XRegExp(`
+    % (?<literal> %) |
+    % (\\((?<name> ([^\\\)]+|\\.)*)\\))?
+        (?<spec> [rt][sSp])
+`, "x");
 
 
-const parseNeworkStatsRegexp = /^\s*([^:]+):\s*(\d+)\s+(\d+)(\s+\d+){6}\s+(\d+)\s+(\d+)\s/;
-const formatRegexp = /%%|%(\((([^\\\)]+|\\.)*)\))?([rt][sSp])/g;
-const parseFormatRegexp = /^%(\((.*)\))?(%|[rt][sSp])$/;
-const prefixes = ["B/s", "kB/s", "MB/s", "GB/s", "TB/s", "PB/s", "EB/s", "ZB/s", "YB/s"];
-
-
-const networkStatsCache = new ResultCache(100);
 function getNetworkStats() {
-    return networkStatsCache.get(() =>
+    return resultCache("Source.Network", () =>
         new Promise((resolve, reject) => {
             fs.readFile("/proc/net/dev", (err, data) => {
                 if (err) {
@@ -27,14 +32,14 @@ function getNetworkStats() {
                     let res = { time: Date.now(), stats: [] };
                     try {
                         for (let line of data.toString().split("\n")) {
-                            let match = line.match(parseNeworkStatsRegexp);
+                            let match = XRegExp.exec(line, parseNeworkStatsRegexp);
                             if (match) {
                                 res.stats.push({
-                                    name: match[1],
-                                    receiveBytes: +match[2],
-                                    receivePackets: +match[3],
-                                    transmitBytes: +match[5],
-                                    transmitPackets: +match[6]
+                                    name: match.name,
+                                    rs: +match.rs,
+                                    rp: +match.tp,
+                                    ts: +match.ts,
+                                    tp: +match.tp
                                 });
                             }
                         }
@@ -63,18 +68,18 @@ function makeUsage(cur, old) {
             let oldI = oldByName[i.name];
             res.push({
                 name: i.name,
-                receiveBytes: Math.round((i.receiveBytes - oldI.receiveBytes) / timeDiff),
-                receivePackets: Math.round((i.receivePackets - oldI.receivePackets) / timeDiff),
-                transmitBytes: Math.round((i.transmitBytes - oldI.transmitBytes) / timeDiff),
-                transmitPackets: Math.round((i.transmitPackets - oldI.transmitPackets) / timeDiff)
+                rs: Math.round((i.rs - oldI.rs) / timeDiff),
+                rp: Math.round((i.rp - oldI.rp) / timeDiff),
+                ts: Math.round((i.ts - oldI.ts) / timeDiff),
+                tp: Math.round((i.tp - oldI.tp) / timeDiff)
             })
         } else {
             res.push({
                 name: i.name,
-                receiveBytes: 0,
-                receivePackets: 0,
-                transmitBytes: 0,
-                transmitPackets: 0
+                rs: 0,
+                rp: 0,
+                ts: 0,
+                tp: 0
             });
         }
     }
@@ -82,52 +87,10 @@ function makeUsage(cur, old) {
 }
 
 
-function formatSize(size) {
-    let prefix = 0;
-    size = size * 10;
-    while (size >= 10000) {
-        size = Math.round(size / 1000);
-        ++prefix;
-    }
-    return `${Math.floor(size / 10)}.${size % 10} ${prefixes[prefix]}`;
-}
-
-
-function formatSpecifier(usage, fake) {
-    function getField(name, field) {
-        return usage.reduce((sum, stat) => {
-            if (!name || stat.name.startsWith(name)) {
-                sum += stat[field];
-            }
-            return sum;
-        }, 0);
-    }
-
-    return str => {
-        let match = str.match(parseFormatRegexp);
-        if (!match) return str;
-        if (fake) return match[3][1] == "s" ? "xxx.x xx/s" : "x";
-
-        let name = match[2] && match[2].replace(/\\./, str => str[1]);
-        switch (match[3]) {
-            case "%": return "%";
-
-            case "rs": return formatSize(getField(name, "receiveBytes"));
-            case "rS": return getField(name, "receiveBytes").toString();
-            case "rp": return getField(name, "receivePackets").toString();
-            case "ts": return formatSize(getField(name, "transmitBytes"));
-            case "tS": return getField(name, "transmitBytes").toString();
-            case "tp": return getField(name, "transmitPackets").toString();
-        }
-        throw new Error("Network.update: Internal error: Bad format: " + str);
-    };
-}
-
-
 class Network extends Repeat {
     constructor(format) {
         super(500);
-        this.format = format;
+        this.formatter = new Formatter(formatRegexp, format);
         this.lastStats = null;
     }
 
@@ -135,8 +98,26 @@ class Network extends Repeat {
         return getNetworkStats().then(stats => {
             let usage = makeUsage(stats, this.lastStats);
             this.lastStats = stats;
-            this.setWidth(this.format.replace(formatRegexp, formatSpecifier(usage, true)));
-            this.setText(this.format.replace(formatRegexp, formatSpecifier(usage)));
+            this.setText(this.formatter.format(match => {
+                if (match.literal) return match.literal;
+                let name = match.name ? match.name.replace(/\\./, str => str[1]) : "";
+                let field = match.spec.toLowerCase();
+                let target = usage.reduce(
+                    (sum, stat) => sum + (stat.name.startsWith(name) ? stat[field] : 0),
+                    0
+                );
+                switch (match.spec) {
+                    case "rS":
+                    case "rp":
+                    case "tS":
+                    case "tp":
+                        return target.toString();
+
+                    case "rs":
+                    case "ts":
+                        return formatSpeed(target);
+                }
+            }));
         });
     }
 }

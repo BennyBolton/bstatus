@@ -1,4 +1,13 @@
-const textParseRegexp = /[\[\]]|\{\}|\{([a-fA-F0-9]{3}){1,2}\}|\\./;
+const XRegExp = require("xregexp");
+
+
+const textParseRegexp = XRegExp(`
+    [\\[\\]] |
+    \\{\\} |
+    \\{ (?<color> ([a-fA-F0-9]{3}){1,2}) \\} |
+    \0 |
+    \\\\.
+`, "x");
 
 
 class Source {
@@ -7,25 +16,11 @@ class Source {
         this._text = [];
     }
 
-    setWidth(width) {
-        if (typeof width == "string") {
-            let text = width;
-            width = 0;
-            let token;
-            while (token = text.match(textParseRegexp)) {
-                width += token.index + (token[0][0] == "\\" ? 1 : 0);
-                text = text.substring(token.index + token[0].length);
-            }
-            width += text.length;
-        }
-        this._width = width;
-        this._update();
-    }
-
     setText(text) {
         text = text ? text.toString() : "";
 
         this._text.length = 0;
+        this._width = 0;
 
         let block = {
             optional: false,
@@ -36,13 +31,13 @@ class Source {
             optional: false,
             color: null
         }
-        let token;
-        while (token = text.match(textParseRegexp)) {
-            block.text += text.substring(0, token.index);
+        let match;
+        while (match = XRegExp.exec(text, textParseRegexp)) {
+            block.text += text.substring(0, match.index);
             let changed = false;
-            switch (token[0][0]) {
+            switch (match[0][0]) {
                 case "\\":
-                    block.text += token[0][1];
+                    block.text += match[0][1];
                     break;
 
                 case "[":
@@ -56,12 +51,16 @@ class Source {
                     break;
 
                 case "{":
-                    newBlock.color = token[0].substring(1, token[0].length - 1) || null;
+                    newBlock.color = match.color || null;
                     changed = block.color != newBlock.color;
                     break;
 
+                case "\0":
+                    ++this._width;
+                    break;
+
                 default:
-                    throw new Error("Source.setText: Internal error, bad token: " + token[0])
+                    throw new Error("Source.setText: Internal error, bad token: " + match[0])
             }
             if (changed) {
                 if (block.text.length > 0) {
@@ -70,16 +69,18 @@ class Source {
                         color: block.color,
                         text: block.text,
                     });
+                    this._width += block.text.length;
                 }
                 block.optional = newBlock.optional;
                 block.color = newBlock.color;
                 block.text = "";
             }
-            text = text.substring(token.index + token[0].length);
+            text = text.substring(match.index + match[0].length);
         }
         block.text += text;
         if (block.text.length > 0) {
             this._text.push(block);
+            this._width += block.text.length;
         }
         this._update();
     }

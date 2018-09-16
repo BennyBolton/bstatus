@@ -14,6 +14,7 @@ global.Output.I3Bar = require("./outputs/i3bar");
 
 global.Source.Clock = require("./sources/clock");
 global.Source.Cpu = require("./sources/cpu");
+global.Source.DiskUsage = require("./sources/diskusage");
 global.Source.Memory = require("./sources/memory");
 global.Source.Network = require("./sources/network");
 global.Source.Repeat = require("./sources/repeat");

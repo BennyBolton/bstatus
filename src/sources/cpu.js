@@ -1,23 +1,29 @@
 const Repeat = require("./repeat");
 const fs = require("fs");
-const { exec, ResultCache } = require("../util");
+const XRegExp = require("xregexp");
+const { exec, Formatter, formatPortion, resultCache } = require("../util");
 
 
-/*
-    TODO
+const parseCpuStatsRegexp = XRegExp(`
+    ^
+    \\s* cpu(?<index> \\d*)
+    \\s+ (?<user> \\d+)
+    \\s+ \\d+
+    \\s+ (?<system> \\d+)
+    \\s
+`, "x");
 
-    - Conditionals
-*/
+const formatRegexp = XRegExp(`
+    % % |
+    % (?<pDenom> \\d+)? (\\.(?<pAccuracy> \\d+))? p |
+    % (?<cIndex> \\d+) (-(?<cDenom> \\d+))? (\\.(?<cAccuracy> \\d+))? c |
+    % (?<CDenom> \\d+)? (\\.(?<CAccuracy> \\d+))?
+        (\\((?<CSeparator> ([^\\\\\\)]+|\\.)*)\\))? C
+`, "x");
 
 
-const parseCpuStatsRegexp = /^\s*cpu(\d*)((\s+\d+){10})\s*$/;
-const formatRegexp = /%%|%\d*(\.\d+)?p|%\d+(-\d+)?(\.\d+)?c|%\d*(\.\d+)?(\((([^\\\)]+|\\.)*)\))?C/g;
-const parseFormatRegexp = /^%(\d*)(-(\d+))?(\.(\d+))?(\((([^\\\)]+|\\.)*)\))?[pcC]$/;
-
-
-const cpuStatsCache = new ResultCache(100);
 function getCpuStats() {
-    return cpuStatsCache.get(() =>
+    return resultCache("Source.Cpu", () =>
         new Promise((resolve, reject) => {
             fs.readFile("/proc/stat", (err, data) => {
                 if (err) {
@@ -26,15 +32,14 @@ function getCpuStats() {
                     let res = { time: Date.now(), count: 0 };
                     try {
                         for (let line of data.toString().split("\n")) {
-                            let match = line.match(parseCpuStatsRegexp);
+                            let match = XRegExp.exec(line, parseCpuStatsRegexp);
                             if (match) {
                                 let index = 0;
-                                if (match[1].length > 0) {
-                                    index = +match[1] + 1;
+                                if (match.index.length > 0) {
+                                    index = +match.index + 1;
                                     if (index > res.count) res.count = index;
                                 }
-                                let values = match[2].match(/\d+/g);
-                                res[index] = +values[0] + +values[2];
+                                res[index] = +match.user + +match.system;
                             }
                         }
                         res[0] /= res.count;
@@ -67,46 +72,10 @@ function makeUsage(cur, old, clkTck) {
 }
 
 
-function formatUsage(value, denom, acc) {
-    return (value * (+denom || 100)).toFixed(+acc || 0);
-}
-
-function formatSpecifier(usage, fake) {
-    return str => {
-        let match;
-        switch (str[str.length - 1]) {
-            case "%": return "%";
-
-            case "p":
-                match = str.match(parseFormatRegexp) || [];
-                return formatUsage(fake ? 1 : usage[0], match[1], match[5]);
-
-            case "c":
-                match = str.match(parseFormatRegexp) || [];
-                return formatUsage(fake ? 1 : (usage[match[1]] || 0), match[3], match[5]);
-
-            case "C":
-                match = str.match(parseFormatRegexp) || [];
-                let txt = "";
-                let seperator = ", ";
-                if (match[7] !== undefined) {
-                    seperator = match[7]
-                }
-                for (let i = 0; i < usage.count; ++i) {
-                    if (i > 0) txt += seperator;
-                    txt += formatUsage(fake ? 1 : usage[i + 1], match[1], match[5]);
-                }
-                return txt;
-        }
-        throw new Error("Cpu.update: Internal error: Bad format: " + str);
-    };
-}
-
-
 class Cpu extends Repeat {
     constructor(format) {
         super(500);
-        this.format = format;
+        this.formatter = new Formatter(formatRegexp, format);
         this.clcTck = exec("getconf CLK_TCK").then(
             val => parseInt(val),
             err => 100
@@ -118,8 +87,30 @@ class Cpu extends Repeat {
         Promise.all([this.clcTck, getCpuStats()]).then(([clkTck, stats]) => {
             let usage = makeUsage(stats, this.lastStats, clkTck);
             this.lastStats = stats;
-            this.setWidth(this.format.replace(formatRegexp, formatSpecifier(usage, true)));
-            this.setText(this.format.replace(formatRegexp, formatSpecifier(usage)));
+            this.setText(this.formatter.format(match => {
+                switch (match[0][match[0].length - 1]) {
+                    case "%": return "%";
+        
+                    case "p":
+                        return formatPortion(usage[0], match.pDenom, match.pAccuracy);
+        
+                    case "c":
+                        return formatPortion(
+                            usage[match.cIndex] || 0,
+                            match.cDenom,
+                            match.cAccuracy
+                        );
+        
+                    case "C":
+                        let txt = "";
+                        let separator = match.CSeparator || ", ";
+                        for (let i = 0; i < usage.count; ++i) {
+                            if (i > 0) txt += separator;
+                            txt += formatPortion(usage[i + 1], match.CDenom, match.CAccuracy);
+                        }
+                        return txt;
+                }
+            }));
         });
     }
 }

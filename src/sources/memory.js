@@ -1,26 +1,23 @@
 const Repeat = require("./repeat");
 const fs = require("fs");
-const { ResultCache } = require("../util");
+const XRegExp = require("xregexp");
+const { resultCache, Formatter, formatSize } = require("../util");
 
 
-/*
-    TODO:
+const parseMeminfoRegexp = XRegExp(`
+    ^
+    \s* (?<key> [^:]+):
+    \s* (?<value> .*[^\s])
+    \s*$
+`, "x");
 
-    - Percentage values
-    - Set width
-    - Conditionals, of the form %([<>]|[<>]?=)<ammount>/d+(<text>)<specifier>
-        e.g. %<100000({f00})mA
-*/
-
-
-const parseMeminfoRegexp = /^\s*([^:]+):\s*(.*[^\s])\s*$/;
-const formatRegexp = /%(%|[mst][uaftUAFT])/g;
-const prefixes = ["kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+const formatRegexp = XRegExp(`
+    % (?<spec> % | [mst][uaftUAFT])
+`, "x");
 
 
-const memoryStatsCache = new ResultCache(100);
 function getMemoryStats() {
-    return memoryStatsCache.get(() =>
+    return resultCache("Source.Memory", () =>
         new Promise((resolve, reject) => {
             fs.readFile("/proc/meminfo", (err, data) => {
                 if (err) {
@@ -29,9 +26,9 @@ function getMemoryStats() {
                     let res = {};
                     try {
                         for (let line of data.toString().split("\n")) {
-                            let match = line.match(parseMeminfoRegexp);
+                            let match = XRegExp.exec(line, parseMeminfoRegexp);
                             if (match) {
-                                res[match[1]] = parseInt(match[2]);
+                                res[match.key] = parseInt(match.value) * 1000;
                             }
                         }
                     } catch (err) {
@@ -47,74 +44,62 @@ function getMemoryStats() {
 
 function getValue(value, stats) {
     switch (value) {
-        case "%mU": return stats.MemTotal - stats.MemFree;
-        case "%mA": return stats.MemAvailable;
-        case "%mF": return stats.MemFree;
-        case "%mT": return stats.MemTotal;
+        case "mU": return stats.MemTotal - stats.MemFree;
+        case "mA": return stats.MemAvailable;
+        case "mF": return stats.MemFree;
+        case "mT": return stats.MemTotal;
 
-        case "%sU": return stats.SwapTotal - stats.SwapFree;
-        case "%sA": return stats.SwapFree + stats.SwapCached;
-        case "%sF": return stats.SwapFree;
-        case "%sT": return stats.SwapTotal;
+        case "sU": return stats.SwapTotal - stats.SwapFree;
+        case "sA": return stats.SwapFree + stats.SwapCached;
+        case "sF": return stats.SwapFree;
+        case "sT": return stats.SwapTotal;
 
-        case "%tU": return getValue("%mU", stats) + getValue("sU", stats);
-        case "%tA": return getValue("%mA", stats) + getValue("sA", stats);
-        case "%tF": return getValue("%mF", stats) + getValue("sF", stats);
-        case "%tT": return getValue("%mT", stats) + getValue("sT", stats);
+        case "tU": return getValue("mU", stats) + getValue("sU", stats);
+        case "tA": return getValue("mA", stats) + getValue("sA", stats);
+        case "tF": return getValue("mF", stats) + getValue("sF", stats);
+        case "tT": return getValue("mT", stats) + getValue("sT", stats);
     }
-}
-
-
-function formatSize(size) {
-    let prefix = 0;
-    size *= 10;
-    while (size >= 10000) {
-        size = Math.round(size / 1000);
-        ++prefix;
-    }
-    return `${Math.floor(size / 10)}.${size % 10} ${prefixes[prefix]}`;
 }
 
 
 class Memory extends Repeat {
     constructor(format) {
         super(1000);
-        this.format = format;
+        this.formatter = new Formatter(formatRegexp, format);
     }
 
     update() {
         return getMemoryStats().then(stats => {
-            this.setText(this.format.replace(formatRegexp, str => {
-                switch (str) {
-                    case "%%": return "%";
+            this.setText(this.formatter.format(match => {
+                switch (match.spec) {
+                    case "%": return "%";
 
-                    case "%mU": return getValue(str, stats).toString();
-                    case "%mA": return getValue(str, stats).toString();
-                    case "%mF": return getValue(str, stats).toString();
-                    case "%mT": return getValue(str, stats).toString();
-                    case "%sU": return getValue(str, stats).toString();
-                    case "%sA": return getValue(str, stats).toString();
-                    case "%sF": return getValue(str, stats).toString();
-                    case "%sT": return getValue(str, stats).toString();
-                    case "%tU": return getValue(str, stats).toString();
-                    case "%tA": return getValue(str, stats).toString();
-                    case "%tF": return getValue(str, stats).toString();
-                    case "%tT": return getValue(str, stats).toString();
+                    case "mU": return getValue(str, stats).toString();
+                    case "mA": return getValue(str, stats).toString();
+                    case "mF": return getValue(str, stats).toString();
+                    case "mT": return getValue(str, stats).toString();
+                    case "sU": return getValue(str, stats).toString();
+                    case "sA": return getValue(str, stats).toString();
+                    case "sF": return getValue(str, stats).toString();
+                    case "sT": return getValue(str, stats).toString();
+                    case "tU": return getValue(str, stats).toString();
+                    case "tA": return getValue(str, stats).toString();
+                    case "tF": return getValue(str, stats).toString();
+                    case "tT": return getValue(str, stats).toString();
 
-                    case "%mu": return formatSize(getValue("%mU", stats));
-                    case "%ma": return formatSize(getValue("%mA", stats));
-                    case "%mf": return formatSize(getValue("%mF", stats));
-                    case "%mt": return formatSize(getValue("%mT", stats));
-                    case "%su": return formatSize(getValue("%sU", stats));
-                    case "%sa": return formatSize(getValue("%sA", stats));
-                    case "%sf": return formatSize(getValue("%sF", stats));
-                    case "%st": return formatSize(getValue("%sT", stats));
-                    case "%tu": return formatSize(getValue("%tU", stats));
-                    case "%ta": return formatSize(getValue("%tA", stats));
-                    case "%tf": return formatSize(getValue("%tF", stats));
-                    case "%tt": return formatSize(getValue("%tT", stats));
+                    case "mu": return formatSize(getValue("mU", stats));
+                    case "ma": return formatSize(getValue("mA", stats));
+                    case "mf": return formatSize(getValue("mF", stats));
+                    case "mt": return formatSize(getValue("mT", stats));
+                    case "su": return formatSize(getValue("sU", stats));
+                    case "sa": return formatSize(getValue("sA", stats));
+                    case "sf": return formatSize(getValue("sF", stats));
+                    case "st": return formatSize(getValue("sT", stats));
+                    case "tu": return formatSize(getValue("tU", stats));
+                    case "ta": return formatSize(getValue("tA", stats));
+                    case "tf": return formatSize(getValue("tF", stats));
+                    case "tt": return formatSize(getValue("tT", stats));
                 }
-                throw new Error("Memory.update: Internal error: Bad format: " + str);
             }));
         });
     }

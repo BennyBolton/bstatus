@@ -71,11 +71,13 @@ module.exports = Ip;
 All text output is can include formatting for specifying color using the tag
 `{xxx}` or `{xxxxxx}` for 3 or 6 digit hex codes respectively, or `{}` to reset
 the color to default. Also `[...]` can be used to specify optional components
-which will be stripped if the status line is too long to be displayed.
+which will be stripped if the status line is too long to be displayed. Null
+characters (`\0`) can be used to specify padding. They are not outputed in
+the final status line, but are counted and used as the width of the field.
 
 The following items are attached to the global object to aid in configuring:
 
-* `configure: (config: {}) => void` -
+* `configure(config: {}): void` -
     Pass configuration for the program. The supported options are:
     * `deferTimeout: number` -
         timeout in milliseconds between a source updating and updating the
@@ -113,6 +115,18 @@ The following items are attached to the global object to aid in configuring:
             separated by _separator_ (default ", ").
         * `%%` -
             A literal percentage character.
+    * `Source.DiskUsage: Source` -
+        Show disk usage. Format specifiers are of the form '%%' for a literal
+        percentage character, or `%[(<path>)]<value>`, where _path_ is a mount
+        point to use (default: root), and _value_ is one of:
+        * `t` - Total disk space.
+        * `u` - Used disk space.
+        * `a` - Available disk space.
+        * `p` - Used disk space, as a percentage.
+        * `P` - Available disk space, as a percentage.
+        The `t`, `u`, and `a` specifiers will be human readable, but `T`, `U`,
+        and `A` can be used respectively to display the value as a raw figure
+        in bytes.
     * `Source.Memory: Source` -
         Show memory utilization. Format specifiers are of the form
         `%%` for a literal percentage character, or `%<source><value>` where
@@ -123,7 +137,7 @@ The following items are attached to the global object to aid in configuring:
         * `f` - Free (Unallocated) memory
         * `t` - Total memory
         These specifiers will be human readable, but `U`, `A`, `F`, and `T` can
-        be used to display the appropriate value as a raw figure in kilobytes.
+        be used to display the appropriate value as a raw figure in bytes.
     * `Source.Network: Source` -
         Show network utilization. Supports the following format specifiers:
         * `%rs` - Bytes received, human readable
@@ -143,10 +157,21 @@ The following items are attached to the global object to aid in configuring:
         or a promise for either nothing or the text to set. This callback is
         run with `this` set to the instance of the source, so it's methods can
         be used, as below under `CUSTOM SOURCES`.
-* `Util.exec: (cmd: string) => Promise<string>` -
+* `Util.formatSize(size: number): string` -
+    Format a size (in bytes) using an appropriate prefix. Adds null characters
+    for padding.
+* `Util.formatSpeed(speed: number): string` -
+    Format a speed (in bytes per second) using an appropriate prefix. Adds
+    null characters for padding.
+* `Util.formatPortion(portion: number, denom: number = 100, acc: number = 0): string` -
+    Format a portion (from 0 to 1), such as percentage values. Adds null
+    characters for padding.
+* `Util.ensureWidth(str: string, width: number): string` -
+    Add null characters to _str_ until it is at least _width_ long.
+* `Util.exec(cmd: string): Promise<string>` -
     Helper function for running a command. Returns a promise for the trimmed
     stdout.
-* `Util.fork: (cmd: string) => void` -
+* `Util.fork(cmd: string): void` -
     Helper function like exec, but for use when the result isn't required, e.g.
     for launching a web page. the command will be run through nohup
 
@@ -156,10 +181,6 @@ CUSTOM SOURCES
 
 Custom sources can be created by extending the `Source` class. The following
 methods are provided to update the sources status:
-* `setWidth(width: number | string): void` -
-    Set the minimum width to display for the source for when the width of the
-    text may vary. If a string is passed, the length of the string after
-    parsing the formatting tokens.
 * `setText(text: string): void` -
     Set the text to display, including formatted tokens.
 * `setError(error: Error): void` -
