@@ -6,6 +6,7 @@ let global = (function () { return this; })();
 let program = new Program();
 
 global.Util = require("./util");
+global.Format = require("./format");
 global.Output = require("./output");
 global.Source = require("./source");
 

@@ -1,16 +1,17 @@
 const Repeat = require("./repeat");
 const fs = require("fs");
 const XRegExp = require("xregexp");
-const { resultCache, Formatter, formatSpeed } = require("../util");
+const { resultCache, makeCondition } = require("../util");
+const { makeFormatter, formatSpeed, formatSize } = require("../format");
 
 
 const parseNeworkStatsRegexp = XRegExp(`
     ^
     \\s* (?<name> [^:]+):
-    \\s* (?<rs> \\d+)
+    \\s* (?<rb> \\d+)
     \\s+ (?<rp> \\d+)
     (\\s+\\d+){6}
-    \\s+ (?<ts> \\d+)
+    \\s+ (?<tb> \\d+)
     \\s+ (?<tp> \\d+)
     \\s
 `, "x");
@@ -20,6 +21,57 @@ const formatRegexp = XRegExp(`
     % (\\((?<name> ([^\\\)]+|\\.)*)\\))?
         (?<spec> [rt][sSp])
 `, "x");
+
+
+const formatRules = [
+    {
+        regex: /%%/,
+        format: "%"
+    },
+    {
+        regex: XRegExp(`%
+            (\\((?<name> ([^\\\\\\)]+|\\.)*)\\))?
+            (?<spec> [rt][bBsSp])
+        `, "x"),
+        format(match) {
+            let name = (match.name || "").replace(/\\./, str => str[1]);
+            let target = (usage, field) => usage.reduce(
+                (sum, stat) => sum + (stat.name.startsWith(name) ? stat[field] : 0),
+                0
+            );
+            switch (match.spec) {
+                case "rb": return usage => formatSize(target(usage, "rb"));
+                case "tb": return usage => formatSize(target(usage, "tb"));
+                case "rs": return usage => formatSpeed(target(usage, "rs"));
+                case "ts": return usage => formatSpeed(target(usage, "ts"));
+
+                case "rS": return usage => target(usage, "rs").toString();
+                case "rB": return usage => target(usage, "rb").toString();
+                case "rp": return usage => target(usage, "rp").toString();
+                case "tS": return usage => target(usage, "ts").toString();
+                case "tB": return usage => target(usage, "tb").toString();
+                case "tp": return usage => target(usage, "tp").toString();
+            }
+        }
+    },
+    {
+        regex: XRegExp(`%
+            ${makeCondition.regex}
+            (\\((?<name> ([^\\\\\\)]+|\\.)*)\\))?
+            (?<spec> [rt][bsp])
+        `, "x"),
+        format(match) {
+            let condition = makeCondition(match);
+            let name = (match.name || "").replace(/\\./, str => str[1]);
+            let field = match.spec;
+            let target = usage => usage.reduce(
+                (sum, stat) => sum + (stat.name.startsWith(name) ? stat[field] : 0),
+                0
+            );
+            return usage => condition(target(usage));
+        }
+    }
+];
 
 
 function getNetworkStats() {
@@ -36,9 +88,9 @@ function getNetworkStats() {
                             if (match) {
                                 res.stats.push({
                                     name: match.name,
-                                    rs: +match.rs,
+                                    rb: +match.rb,
                                     rp: +match.tp,
-                                    ts: +match.ts,
+                                    tb: +match.tb,
                                     tp: +match.tp
                                 });
                             }
@@ -68,18 +120,22 @@ function makeUsage(cur, old) {
             let oldI = oldByName[i.name];
             res.push({
                 name: i.name,
-                rs: Math.round((i.rs - oldI.rs) / timeDiff),
-                rp: Math.round((i.rp - oldI.rp) / timeDiff),
-                ts: Math.round((i.ts - oldI.ts) / timeDiff),
-                tp: Math.round((i.tp - oldI.tp) / timeDiff)
+                rb: i.rb,
+                rs: Math.round((i.rb - oldI.rb) / timeDiff),
+                rp: i.rp,
+                tb: i.tb,
+                ts: Math.round((i.tb - oldI.tb) / timeDiff),
+                tp: i.tp
             })
         } else {
             res.push({
                 name: i.name,
+                rb: i.rb,
                 rs: 0,
-                rp: 0,
+                rp: i.rp,
+                tb: i.tb,
                 ts: 0,
-                tp: 0
+                tp: i.tp
             });
         }
     }
@@ -90,7 +146,7 @@ function makeUsage(cur, old) {
 class Network extends Repeat {
     constructor(format) {
         super(500);
-        this.formatter = new Formatter(formatRegexp, format);
+        this.formatter = makeFormatter(formatRules, format);
         this.lastStats = null;
     }
 
@@ -98,26 +154,7 @@ class Network extends Repeat {
         return getNetworkStats().then(stats => {
             let usage = makeUsage(stats, this.lastStats);
             this.lastStats = stats;
-            this.setText(this.formatter.format(match => {
-                if (match.literal) return match.literal;
-                let name = match.name ? match.name.replace(/\\./, str => str[1]) : "";
-                let field = match.spec.toLowerCase();
-                let target = usage.reduce(
-                    (sum, stat) => sum + (stat.name.startsWith(name) ? stat[field] : 0),
-                    0
-                );
-                switch (match.spec) {
-                    case "rS":
-                    case "rp":
-                    case "tS":
-                    case "tp":
-                        return target.toString();
-
-                    case "rs":
-                    case "ts":
-                        return formatSpeed(target);
-                }
-            }));
+            this.setText(this.formatter.format(usage));
         });
     }
 }

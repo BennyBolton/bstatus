@@ -2,15 +2,6 @@ const child_process = require("child_process");
 const XRegExp = require("xregexp");
 
 
-const sizePrefixes = [
-    "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"
-];
-const speedPrefixes = [
-    "B/s\0", "kB/s", "MB/s", "GB/s", "TB/s",
-    "PB/s", "EB/s", "ZB/s", "YB/s"
-];
-
-
 class Defer {
     constructor(timeout) {
         this.timeout = timeout || 0;
@@ -27,68 +18,6 @@ class Defer {
             this.action = setTimeout(this._update, this.timeout);
         }
     }
-}
-
-
-class Formatter {
-    constructor(spec, format) {
-        this.comps = [];
-        let match;
-        while (match = XRegExp.exec(format, spec)) {
-            this.comps.push({
-                prefix: format.substring(0, match.index),
-                match
-            });
-            format = format.substring(match.index + match[0].length);
-        }
-        this.suffix = format;
-    }
-
-    format(cb) {
-        return this.comps.reduce(
-            (str, { prefix, match }) => str + prefix + (cb(match) || ""),
-            ""
-        ) + this.suffix;
-    }
-}
-
-
-function formatSize(size) {
-    let prefix = 0;
-    size = Math.round(parseInt(size) / 100);
-    while (size >= 10000) {
-        size = Math.round(size / 1000);
-        ++prefix;
-    }
-    let value = `${Math.floor(size / 10)}.${size % 10}`;
-    return `${ensureWidth(value, 5)} ${sizePrefixes[prefix]}`;
-}
-
-
-function formatSpeed(size) {
-    let prefix = 0;
-    size = Math.round(parseInt(size) * 10);
-    while (size >= 10000) {
-        size = Math.round(size / 1000);
-        ++prefix;
-    }
-    let value = `${Math.floor(size / 10)}.${size % 10}`;
-    return `${ensureWidth(value, 5)} ${speedPrefixes[prefix]}`;
-}
-
-
-function formatPortion(value, denom, acc) {
-    value = value || 0;
-    denom = denom ? +denom : 100;
-    acc = acc ? +acc : 0;
-    let result = (value * denom).toFixed(acc);
-    return ensureWidth(result, denom.toFixed(acc).length);
-}
-
-
-function ensureWidth(value, width) {
-    while (value.length < width) value += "\0";
-    return value;
 }
 
 
@@ -133,6 +62,36 @@ function parseColor(color) {
 }
 
 
+function makeCondition(match) {
+    let value = +match._value;
+    let text = match._text.replace(/\\./, str => str[1]);
+    switch (match._suffix) {
+        case "K": value *= 1e3; break;
+        case "M": value *= 1e6; break;
+        case "G": value *= 1e9; break;
+        case "T": value *= 1e12; break;
+        case "P": value *= 1e15; break;
+        case "E": value *= 1e18; break;
+        case "Z": value *= 1e21; break;
+        case "Y": value *= 1e24; break;
+    }
+    switch (match._op) {
+        case "=":  return x => x == value ? text : "";
+        case "!=": return x => x != value ? text : "";
+        case "<":  return x => x <  value ? text : "";
+        case ">":  return x => x >  value ? text : "";
+        case "<=": return x => x <= value ? text : "";
+        case ">=": return x => x >= value ? text : "";
+    }
+}
+makeCondition.regex = `
+    (?<_op> !?=|[<>]=?)
+    (?<_value> \\d+(\\.\\d+)?)
+    (?<_suffix> [KMGTPEZY])?
+    (\\((?<_text> ([^\\\\\\)]+|\\.)*)\\))
+`;
+
+
 function exec(cmd) {
     return new Promise((resolve, reject) => {
         child_process.exec(cmd, (err, res) => {
@@ -153,14 +112,10 @@ function fork(cmd) {
 
 module.exports = {
     Defer,
-    Formatter,
-    formatSize,
-    formatSpeed,
-    formatPortion,
-    ensureWidth,
     resultCache,
     alignTimeout,
     parseColor,
+    makeCondition,
     exec,
     fork
 };
