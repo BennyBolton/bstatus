@@ -14,9 +14,9 @@ USAGE
 -----
 
 bstatus can be run by running the created node script with `./bstatus.js`, which
-by default will try to use the config file at `~/.bstatus/config.js`, but an
-alternative config file can be used by running
-`./bstatus.js /path/to/config.js`.
+by default will try to use the config file at `~/.config/bstatus/config.js`,
+and then `~/.bstatus/config.js` if that does not exists, but an alternative
+config file can be used by running `./bstatus.js /path/to/config.js`.
 
 CONFIGURING
 -----------
@@ -112,6 +112,7 @@ The following items are attached to the global object to aid in configuring:
 
     * `Source.Cpu: Source` -
         Show CPU utilization. Supports the following format specifiers:
+
         * `%[<denominator>][.<accuracy>]p` -
             Shows the total utilization, out of _denominator_ (default: 100) to
             _accuracy_ decimal points (default: 0). Supports conditional
@@ -131,11 +132,13 @@ The following items are attached to the global object to aid in configuring:
         Show disk usage. Format specifiers are of the form '%%' for a literal
         percentage character, or `%[(<path>)]<value>`, where _path_ is a mount
         point to use (default: root), and _value_ is one of:
+
         * `t` - Total disk space.
         * `u` - Used disk space.
         * `a` - Available disk space.
         * `p` - Used disk space, as a percentage.
         * `P` - Available disk space, as a percentage.
+
         The `t`, `u`, and `a` specifiers will be human readable, but `T`, `U`,
         and `A` can be used respectively to display the value as a raw figure
         in bytes. Supports conditional statements (see below).
@@ -145,10 +148,12 @@ The following items are attached to the global object to aid in configuring:
         `%%` for a literal percentage character, or `%<source><value>` where
         _source_ is one of 'm', 's', or 't' forphysical memory, swap space,
         and total memory respectively, and _value_ is one of:
+
         * `u` - Used memory
         * `a` - Available memory, excluding cached memory
         * `f` - Free (Unallocated) memory
         * `t` - Total memory
+
         These specifiers will be human readable, but `U`, `A`, `F`, and `T` can
         be used to display the appropriate value as a raw figure in bytes.
         The format specifier `%[denominator][.accuracy]p<source><value>` can br
@@ -158,6 +163,7 @@ The following items are attached to the global object to aid in configuring:
 
     * `Source.Network: Source` -
         Show network utilization. Supports the following format specifiers:
+
         * `%rb` - Bytes received, human readable
         * `%rB` - Bytes received, raw
         * `%rs` - Rate received, human readable
@@ -169,6 +175,7 @@ The following items are attached to the global object to aid in configuring:
         * `%tB` - rate transmitted, raw
         * `%tp` - Packets transmitted
         * `%%` - A literal percentage character.
+
         For the appropriate specifiers, the value displayed is the sum of all
         available interfaces. An interface filter can be specified to filter by
         interfaces whose names start with a given value, by using a format
@@ -221,6 +228,7 @@ CUSTOM SOURCES
 
 Custom sources can be created by extending the `Source` class. The following
 methods are provided to update the sources status:
+
 * `setText(text: string): void` -
     Set the text to display, including formatted tokens.
 * `setError(error: Error): void` -

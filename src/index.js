@@ -1,5 +1,6 @@
 const Program = require("./program");
 const { resolve } = require("path");
+const { existsSync } = require("fs");
 
 
 let global = (function () { return this; })();
@@ -23,13 +24,20 @@ global.Source.Repeat = require("./sources/repeat");
 global.configure = config => program.configure(config);
 
 
-let configFile = process.env["HOME"] + "/.bstatus/config.js";
+let configFile = [
+    process.env["HOME"] + "/.config/bstatus/config.js",
+    process.env["HOME"] + "/.bstatus/config.js"
+].find(existsSync);
+
 if (process.argv.length > 2) {
     if (process.argv.length > 3 || process.argv[2] == "--help") {
         console.error(`Usage: bstatus [config-file]`);
         process.exit(-1);
     }
     configFile = resolve(process.cwd(), process.argv[2]);
+} else if (configFile === undefined) {
+    console.error("Could not find config file");
+    process.exit(-1);
 }
 
 if (typeof __webpack_require__ === "function") {
