@@ -8,7 +8,7 @@ const { makeFormatter, formatPortion } = require("../format");
 const parseCpuStatsRegexp = XRegExp(`^
     \\s* cpu(?<index> \\d*)
     \\s+ (?<user> \\d+)
-    \\s+ \\d+
+    \\s+ (?<nice> \\d+)
     \\s+ (?<system> \\d+)
     \\s
 `, "x");
@@ -111,7 +111,7 @@ function getCpuStats() {
                                     index = +match.index + 1;
                                     if (index > res.count) res.count = index;
                                 }
-                                res[index] = +match.user + +match.system;
+                                res[index] = +match.user + +match.nice + +match.system;
                             }
                         }
                         res[0] /= res.count;
